@@ -23,8 +23,8 @@ public class ThreadedDataRequester : MonoBehaviour {
         new Thread (threadStart).Start ();
     }
 
-    void DataThread(Func<object> generateData, Action<object> callback) {
-        object data = generateData ();
+    public void DataThread(Func<object> generateData, Action<object> callback) {
+        var data = generateData ();
         lock (dataQueue) {
             dataQueue.Enqueue (new ThreadInfo (callback, data));
         }

@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Serialization;
 
 public class TerrainGenerator : MonoBehaviour {
 
@@ -12,7 +13,8 @@ public class TerrainGenerator : MonoBehaviour {
 	public LODInfo[] detailLevels;
 
 	public MeshSettings meshSettings;
-	public HeightMapSettings heightMapSettings;
+	public NoiseMapSettings noiseMapSettings;
+	public NoiseMapSettings oceanMapSettings;
 
 	public Transform viewer;
 	public Material mapMaterial;
@@ -66,13 +68,12 @@ public class TerrainGenerator : MonoBehaviour {
 					if (terrainChunkDictionary.ContainsKey (viewedChunkCoord)) {
 						terrainChunkDictionary [viewedChunkCoord].UpdateTerrainChunk ();
 					} else {
-						TerrainChunk newChunk = new TerrainChunk (viewedChunkCoord,heightMapSettings,meshSettings, detailLevels, colliderLODIndex, transform, viewer, mapMaterial);
+						TerrainChunk newChunk = new TerrainChunk (viewedChunkCoord,noiseMapSettings, oceanMapSettings, meshSettings, detailLevels, colliderLODIndex, transform, viewer, mapMaterial);
 						terrainChunkDictionary.Add (viewedChunkCoord, newChunk);
 						newChunk.onVisibilityChanged += OnTerrainChunkVisibilityChanged;
 						newChunk.Load ();
 					}
 				}
-
 			}
 		}
 	}
@@ -84,7 +85,6 @@ public class TerrainGenerator : MonoBehaviour {
 			visibleTerrainChunks.Remove (chunk);
 		}
 	}
-
 }
 
 [System.Serializable]

@@ -4,7 +4,7 @@ using System.Collections;
 public static class MeshGenerator {
  
 
-	public static MeshData GenerateTerrainMesh(float[,] heightMap, MeshSettings meshSettings, int levelOfDetail) {
+	public static MeshData GenerateTerrainMesh(float[,] heightMap, float[,] oceanMap, MeshSettings meshSettings, int levelOfDetail) {
 
 		int meshSimplificationIncrement = (levelOfDetail == 0)?1:levelOfDetail * 2;
 
@@ -42,7 +42,7 @@ public static class MeshGenerator {
 			for (int x = 0; x < borderedSize; x += meshSimplificationIncrement) {
 				int vertexIndex = vertexIndicesMap [x, y];
 				Vector2 percent = new Vector2 ((x-meshSimplificationIncrement) / (float)meshSize, (y-meshSimplificationIncrement) / (float)meshSize);
-				float height = heightMap [x, y];
+				float height = heightMap[x,y] * oceanMap[x, y];
 				Vector3 vertexPosition = new Vector3 ((topLeftX + percent.x * meshSizeUnsimplified) * meshSettings.meshScale, height, (topLeftZ - percent.y * meshSizeUnsimplified) * meshSettings.meshScale);
 
 				meshData.AddVertex (vertexPosition, percent, vertexIndex);

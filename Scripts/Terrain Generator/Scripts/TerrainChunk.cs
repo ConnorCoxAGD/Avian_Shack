@@ -18,23 +18,24 @@ public class TerrainChunk {
 	LODMesh[] lodMeshes;
 	int colliderLODIndex;
 
-	HeightMap heightMap;
-	bool heightMapReceived;
+	NoiseMap _noiseMap, _moistureMap;
+	bool heightMapReceived, moistureMapReceived;
 	int previousLODIndex = -1;
 	bool hasSetCollider;
 	float maxViewDst;
 
-	HeightMapSettings heightMapSettings;
+	private NoiseMapSettings _noiseMapSettings, _oceanMapSettings;
 	MeshSettings meshSettings;
-	Transform viewer;
+	Transform player;
 
-	public TerrainChunk(Vector2 coord, HeightMapSettings heightMapSettings, MeshSettings meshSettings, LODInfo[] detailLevels, int colliderLODIndex, Transform parent, Transform viewer, Material material) {
+	public TerrainChunk(Vector2 coord, NoiseMapSettings noiseMapSettings, NoiseMapSettings oceanMapSettings, MeshSettings meshSettings, LODInfo[] detailLevels, int colliderLODIndex, Transform parent, Transform player, Material material) {
 		this.coord = coord;
 		this.detailLevels = detailLevels;
 		this.colliderLODIndex = colliderLODIndex;
-		this.heightMapSettings = heightMapSettings;
+		_noiseMapSettings = noiseMapSettings;
+		_oceanMapSettings = oceanMapSettings;
 		this.meshSettings = meshSettings;
-		this.viewer = viewer;
+		this.player = player;
 
 		sampleCentre = coord * meshSettings.meshWorldSize / meshSettings.meshScale;
 		Vector2 position = coord * meshSettings.meshWorldSize ;
@@ -64,29 +65,40 @@ public class TerrainChunk {
 
 	}
 
-	public void Load() {
-		ThreadedDataRequester.RequestData(() => HeightMapGenerator.GenerateHeightMap (meshSettings.numVertsPerLine, meshSettings.numVertsPerLine, heightMapSettings, sampleCentre), OnHeightMapReceived);
+	public void Load()
+	{
+		ThreadedDataRequester.RequestData(
+			() => NoiseMapGenerator.GenerateNoiseMap(meshSettings.numVertsPerLine, meshSettings.numVertsPerLine,
+				_noiseMapSettings, sampleCentre), OnHeightMapReceived);
+		ThreadedDataRequester.RequestData(() => NoiseMapGenerator.GenerateNoiseMap (meshSettings.numVertsPerLine, 
+			meshSettings.numVertsPerLine, _oceanMapSettings, sampleCentre), OnMoistureMapReceived);
 	}
 
+	void OnMoistureMapReceived(object moistureMapObject)
+	{
+		_moistureMap = (NoiseMap) moistureMapObject;
+		moistureMapReceived = true;
+	}
 
-
-	void OnHeightMapReceived(object heightMapObject) {
-		this.heightMap = (HeightMap)heightMapObject;
+	void OnHeightMapReceived(object heightMapObject) 
+	{
+		_noiseMap = (NoiseMap)heightMapObject;
 		heightMapReceived = true;
 
 		UpdateTerrainChunk ();
 	}
 
-	Vector2 viewerPosition {
+	Vector2 playerPosition {
 		get {
-			return new Vector2 (viewer.position.x, viewer.position.z);
+			return new Vector2 (player.position.x, player.position.z);
 		}
 	}
 
 
 	public void UpdateTerrainChunk() {
-		if (heightMapReceived) {
-			float viewerDstFromNearestEdge = Mathf.Sqrt (bounds.SqrDistance (viewerPosition));
+		if (heightMapReceived && moistureMapReceived) 
+		{
+			float viewerDstFromNearestEdge = Mathf.Sqrt (bounds.SqrDistance (playerPosition));
 
 			bool wasVisible = IsVisible ();
 			bool visible = viewerDstFromNearestEdge <= maxViewDst;
@@ -108,7 +120,7 @@ public class TerrainChunk {
 						previousLODIndex = lodIndex;
 						meshFilter.mesh = lodMesh.mesh;
 					} else if (!lodMesh.hasRequestedMesh) {
-						lodMesh.RequestMesh (heightMap, meshSettings);
+						lodMesh.RequestMesh (_noiseMap, _moistureMap, meshSettings);
 					}
 				}
 
@@ -127,11 +139,11 @@ public class TerrainChunk {
 
 	public void UpdateCollisionMesh() {
 		if (!hasSetCollider) {
-			float sqrDstFromViewerToEdge = bounds.SqrDistance (viewerPosition);
+			float sqrDstFromViewerToEdge = bounds.SqrDistance (playerPosition);
 
 			if (sqrDstFromViewerToEdge < detailLevels [colliderLODIndex].sqrVisibleDstThreshold) {
 				if (!lodMeshes [colliderLODIndex].hasRequestedMesh) {
-					lodMeshes [colliderLODIndex].RequestMesh (heightMap, meshSettings);
+					lodMeshes [colliderLODIndex].RequestMesh (_noiseMap, _moistureMap, meshSettings);
 				}
 			}
 
@@ -159,7 +171,7 @@ class LODMesh {
 	public Mesh mesh;
 	public bool hasRequestedMesh;
 	public bool hasMesh;
-	int lod;
+	readonly int lod;
 	public event System.Action updateCallback;
 
 	public LODMesh(int lod) {
@@ -173,9 +185,9 @@ class LODMesh {
 		updateCallback ();
 	}
 
-	public void RequestMesh(HeightMap heightMap, MeshSettings meshSettings) {
+	public void RequestMesh(NoiseMap noiseMap, NoiseMap moistureMap, MeshSettings meshSettings) {
 		hasRequestedMesh = true;
-		ThreadedDataRequester.RequestData (() => MeshGenerator.GenerateTerrainMesh (heightMap.values, meshSettings, lod), OnMeshDataReceived);
+		ThreadedDataRequester.RequestData (() => MeshGenerator.GenerateTerrainMesh (noiseMap.values, moistureMap.values,  meshSettings, lod), OnMeshDataReceived);
 	}
 
 }
